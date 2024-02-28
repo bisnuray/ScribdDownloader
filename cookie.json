@@ -1,0 +1,18 @@
+#Example JSON Replace with actual premium Scribd Account JSON 
+
+[
+{
+    "domain": ".scribd.com",
+    "expirationDate": 1743673276.655682,
+    "hostOnly": false,
+    "httpOnly": false,
+    "name": "__CJ_nwt",
+    "path": "/",
+    "sameSite": "lax",
+    "secure": true,
+    "session": false,
+    "storeId": "0",
+    "value": "%3A6980%2C%22nw2742%22%3A6970%7D",
+    "id": 1
+}
+]
