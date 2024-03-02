@@ -26,7 +26,7 @@
 - Access to a Scribd premium account (for cookies).
 - Must be use Premium Account Cookies [ Update cookie file with you actual premium account cookies ]
 
-1. Install the required dependencies, ensuring Python 3.9 or higher:
+1. Install the required dependencies, ensuring Python 3.8 or higher:
 
     ```bash
     pip install aiogram==2.6
