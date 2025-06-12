@@ -1,0 +1,31 @@
+{
+  "name": "ScribdDLBot",
+  "description": "A Telegram bot for downloading Scribd documents",
+  "repository": "https://github.com/bisnuray/scribddownloader",
+  "keywords": ["telegram", "bot", "scribd", "python", "pyrogram"],
+  "env": {
+    "API_ID": {
+      "description": "Your Telegram API ID",
+      "required": true
+    },
+    "API_HASH": {
+      "description": "Your Telegram API Hash",
+      "required": true
+    },
+    "BOT_TOKEN": {
+      "description": "Your Telegram Bot Token",
+      "required": true
+    }
+  },
+  "formation": {
+    "worker": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}
