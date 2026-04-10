@@ -3,180 +3,108 @@ Author: Bisnu Ray
 https://t.me/itsSmartDev
 """
 
-import logging
 import re
-import requests
-import asyncio
 import json
-from aiogram import Bot, Dispatcher, executor, types
-from aiogram.utils.exceptions import MessageToDeleteNotFound
+import requests
 
-# Initialize bot and dispatcher
-bot_token = '1234567890:AAGNaKh6J5jrK4og9FWkiGR1jifbZjTniik'  # Replace with your bot's token
-bot = Bot(token=bot_token)
-dp = Dispatcher(bot)
 
-# Function to load cookies from a file
-def load_cookies(file_path):
-    with open(file_path, 'r') as file:
-        cookies_raw = json.load(file)
-        if isinstance(cookies_raw, dict):
-            return cookies_raw
-        elif isinstance(cookies_raw, list):
-            cookies = {}
-            for cookie in cookies_raw:
-                if 'name' in cookie and 'value' in cookie:
-                    cookies[cookie['name']] = cookie['value']
-            return cookies
-        else:
-            raise ValueError("Cookies are in an unsupported format.")
+COOKIE_FILE = "cookie.json"
 
-# Function to extract necessary information from the first response
-def extract_information(response_json):
-    print(extract_information)
-    document = response_json.get('document', {})
-    title = document.get('title', 'Not Available')
-    access_key = document.get('access_key', 'Not Available')
-    author = document.get('author', {})
-    author_name = author.get('name', 'Not Available')
-    receipt_url = response_json.get('receipt_url', 'Not Available')
 
+def load_cookies(file_path: str = COOKIE_FILE) -> dict:
+    with open(file_path, "r", encoding="utf-8") as f:
+        raw = json.load(f)
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, list):
+        return {c["name"]: c["value"] for c in raw if "name" in c and "value" in c}
+    raise ValueError("Unsupported cookie format. Must be a dict or list of {name, value}.")
+
+
+def extract_info(data: dict) -> dict:
+    doc = data.get("document", {})
     return {
-        "title": title,
-        "access_key": access_key,
-        "author_name": author_name,
-        "receipt_url": receipt_url
+        "title": doc.get("title", "N/A"),
+        "access_key": doc.get("access_key", "N/A"),
+        "author_name": doc.get("author", {}).get("name", "N/A"),
+        "receipt_url": data.get("receipt_url", "N/A"),
     }
 
-# Load cookies
-cookies = load_cookies('cookie.json')
 
-# First request
-try:
-    response = requests.get(first_url, cookies=cookies)
-    if response.status_code == 200:
-        info = extract_information(response.json())
-        print("Title:", info['title'])
-        print("Author Name:", info['author_name'])
-        print("Receipt URL:", info['receipt_url'])
-
-        # Construct the second URL using the extracted access_key and URL ID
-        url_id = first_url.split('/')[-1]
-        second_url = f"{base_second_url}{url_id}/?secret_password={info['access_key']}&extension=pdf"
-
-        # Second request
-        response = requests.get(second_url, cookies=cookies, allow_redirects=False)
-        if response.status_code in [301, 302]:  # Check if it's a redirect
-            redirect_url = response.headers.get('Location')
-            if redirect_url:
-                print("Redirect URL from second request:", redirect_url)
-
-                # Third request to the redirect URL
-                third_response = requests.get(redirect_url, cookies=cookies, allow_redirects=False)
-                if third_response.status_code in [301, 302]:
-                    final_redirect_url = third_response.headers.get('Location')
-                    if final_redirect_url:
-                        print("Final Redirect URL from third request:", final_redirect_url)
-                    else:
-                        print("No 'Location' header found in the third request.")
-                else:
-                    print("Third request status code:", third_response.status_code)
-                    print("This URL didn't redirect as expected.")
-
-            else:
-                print("No redirect URL found in the headers of the second request.")
-        else:
-            print("Second request status code:", response.status_code)
-            print("Response:")
-            print(response.text)
-
-    else:
-        print("First request failed with status code:", response.status_code)
-except Exception as e:
-    print("An error occurred:", e)
+def parse_document_id(url: str) -> str | None:
+    match = re.search(r"scribd\.com/(?:document|doc|presentation)/(\d+)", url)
+    return match.group(1) if match else None
 
 
+def get_download_link(scribd_url: str, cookie_file: str = COOKIE_FILE) -> dict:
+    doc_id = parse_document_id(scribd_url)
+    if not doc_id:
+        return {"error": "Invalid Scribd URL. Must contain /document/, /doc/, or /presentation/."}
 
-@dp.message_handler(commands=['scribd']) # You Can Change the command scribd to any thing 
-async def process_scribd_url(message: types.Message):
-    user_id = message.from_user.id
-    chat_id = message.chat.id
+    cookies = load_cookies(cookie_file)
+    session = requests.Session()
+    session.cookies.update(cookies)
 
-    # Check if the URL is valid
-    url = message.get_args()
-    match = re.search(r'scribd\.com/document/(\d+)|scribd\.com/doc/(\d+)|scribd\.com/presentation/(\d+)', url)
-    if not url or not match:
-        await message.answer("<b>Please provide a valid Scribd URL after the /scribd </b>", parse_mode='HTML')
-        return
+    url1 = f"https://www.scribd.com/doc-page/download-receipt-modal-props/{doc_id}"
+    print(f"[1] GET {url1}")
+    r1 = session.get(url1)
+    r1.raise_for_status()
+    info = extract_info(r1.json())
+    print(f'    Title      : {info["title"]}')
+    print(f'    Author     : {info["author_name"]}')
+    print(f'    Access Key : {info["access_key"]}')
+    print(f'    Receipt URL: {info["receipt_url"]}')
 
-    document_id = match.group(1) or match.group(2)
-    first_url = f'https://www.scribd.com/doc-page/download-receipt-modal-props/{document_id}'
+    url2 = f'https://www.scribd.com/document_downloads/{doc_id}/?secret_password={info["access_key"]}&extension=pdf'
+    print(f"\n[2] GET {url2}")
+    r2 = session.get(url2, allow_redirects=False)
+    print(f"    Status : {r2.status_code}")
 
-    # Send a loading message
-    loading_message = await message.answer("<b>Processing your request...</b>", parse_mode='HTML')
+    if r2.status_code not in (301, 302):
+        return {"error": f"Expected redirect, got {r2.status_code}", "body": r2.text[:300]}
 
+    redirect1 = r2.headers.get("Location")
+    if not redirect1:
+        return {"error": "No Location header in step-2 response."}
+    print(f"    Redirect → {redirect1}")
+
+    print(f"\n[3] GET {redirect1}")
+    r3 = session.get(redirect1, allow_redirects=False)
+    print(f"    Status : {r3.status_code}")
+
+    if r3.status_code not in (301, 302):
+        print("    (No further redirect — treating this as the final URL)")
+        return {**info, "download_url": redirect1, "doc_id": doc_id}
+
+    final_url = r3.headers.get("Location")
+    if not final_url:
+        return {"error": "No Location header in step-3 response."}
+    print(f"    Redirect → {final_url}")
+
+    return {**info, "download_url": final_url, "doc_id": doc_id}
+
+
+if __name__ == "__main__":
+    scribd_url = input("Enter Scribd URL: ").strip()
+
+    print("\n" + "─" * 60)
     try:
-        # Load cookies
-        cookies = load_cookies('cookie.json')  # Ensure the 'sc.json' file is in the correct path
-
-        # First request
-        response = requests.get(first_url, cookies=cookies)
-        if response.status_code == 200:
-            info = extract_information(response.json())
-            title = info['title']
-            author_name = info['author_name']
-            receipt_url = info['receipt_url']
-
-            # Construct the second URL using the extracted access_key and URL ID
-            second_url = f"https://www.scribd.com/document_downloads/{document_id}/?secret_password={info['access_key']}&extension=pdf"
-
-            # Second request
-            response = requests.get(second_url, cookies=cookies, allow_redirects=False)
-            if response.status_code in [301, 302]:
-                redirect_url = response.headers.get('Location')
-                if redirect_url:
-                    # Third request to the redirect URL
-                    third_response = requests.get(redirect_url, cookies=cookies, allow_redirects=False)
-                    if third_response.status_code in [301, 302]:
-                        final_redirect_url = third_response.headers.get('Location')
-                        if final_redirect_url:
-                            # Create the message text
-                            message_text = (
-                                f"<b>Here is the Download Link ✅\n"
-                                f"━━━━━━━━━━━━━━━━\n"
-                                f"Title: {title}\n"
-                                f"Author Name: {author_name}\n"
-                                f"Main Url: <a href='{receipt_url}'>Click Here</a>\n"
-                                f"Download Link: <a href='{final_redirect_url}'>Download Now</a>\n"
-                                f"━━━━━━━━━━━━━━━━\n"
-                                f"Scribd Downloader By: <a href='https://t.me/theStudyMateBot'>Study Mate</a></b>"
-                            )
-                            download_button = types.InlineKeyboardMarkup()
-                            download_button.add(types.InlineKeyboardButton(text="Download Now", url=final_redirect_url))
-
-                            # Send the message with the inline button
-                            await message.answer(message_text, reply_markup=download_button, parse_mode='HTML')
-                        else:
-                            await message.answer("Failed to get the final redirect URL.", parse_mode='HTML')
-                    else:
-                        await message.answer("Failed to redirect from the second request.", parse_mode='HTML')
-                else:
-                    await message.answer("No redirect URL found in the headers of the second request.", parse_mode='HTML')
-            else:
-                await message.answer(f"Second request failed with status code: {response.status_code}", parse_mode='HTML')
+        result = get_download_link(scribd_url)
+        print("\n" + "─" * 60)
+        if "error" in result:
+            print(f'[✗] Error: {result["error"]}')
+            if "body" in result:
+                print(f'    Response body preview:\n{result["body"]}')
         else:
-            await message.answer(f"First request failed with status code: {response.status_code}", parse_mode='HTML')
-
+            print("[✓] Done!")
+            print(f'    Title       : {result["title"]}')
+            print(f'    Author      : {result["author_name"]}')
+            print(f'    Receipt URL : {result["receipt_url"]}')
+            print(f'    Download URL: {result["download_url"]}')
+    except requests.HTTPError as e:
+        print(f"[✗] HTTP error: {e}")
+    except FileNotFoundError:
+        print(f"[✗] Cookie file not found: {COOKIE_FILE}")
     except Exception as e:
-        await message.answer(f"<code>An error occurred: {e}</code>", parse_mode='HTML')
-
-    # After processing is complete, delete the loading message
-    try:
-        await bot.delete_message(chat_id, loading_message.message_id)
-    except MessageToDeleteNotFound:
-        pass  # Message was already deleted
-
-
-# Be sure to start the reset task when the bot starts up
-if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+        print(f"[✗] Unexpected error: {e}")
+    print("─" * 60)
