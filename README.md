@@ -9,52 +9,19 @@
 </p>
 
 <p align="center">
-  <em>Scribd Downloader is Python Script capable of downloading Scribd documents as PDF files using cookies from a premium account. It's designed to help users access Scribd documents directly through Telegram</em>
+  <em>Scribd Downloader is a simple Python script that lets you download Scribd documents easily.</em>
 </p>
 
 ## Features
 
 - Download Scribd documents as PDFs.
 - Support for various Scribd URL formats.
-- Utilizes premium account cookies for access.
-- Inline download link and information about the document.
+- Need premium account cookies for access.
 
 ## Requirements
 
-- `aiogram=2.6`
-- A Telegram bot token.
 - Access to a Scribd premium account (for cookies).
 - Must be use Premium Account Cookies [ Update cookie file with you actual premium account cookies ]
-
-1. Install the required dependencies, ensuring Python 3.8 or higher:
-
-    ```bash
-    pip install aiogram==2.6
-    ```
-
-## Deploy the Bot
-
-```sh
-git clone https://github.com/bisnuray/ScribdDownloader
-cd ScribdDownloader
-python3 scribd.py
-```
-### Setting Up the Bot
-
-1. Create a new bot with [@BotFather](https://t.me/botfather) on Telegram and get the bot token.
-2. Replace the placeholder token in the script with your actual bot token.
-
-### Running the Bot
-
-Execute the script to start the bot:
-
-```bash
-python3 scribd.py
-```
-## Usage 🛠️
-The bot supports the following commands:
-
-- /scribd with scribd file url 
 
 ## Author 📝
 
