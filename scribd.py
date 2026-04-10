@@ -7,9 +7,7 @@ import re
 import json
 import requests
 
-
 COOKIE_FILE = "cookie.json"
-
 
 def load_cookies(file_path: str = COOKIE_FILE) -> dict:
     with open(file_path, "r", encoding="utf-8") as f:
