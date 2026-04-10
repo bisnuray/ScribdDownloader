@@ -26,7 +26,7 @@
 ## Author 📝
 
 - Name: Bisnu Ray
-- Telegram: [@SmartBisnuBio](https://t.me/SmartBisnuBio)
+- Telegram: [@itsSmartDev](https://t.me/itsSmartDev)
 
 Feel free to reach out if you have any questions or feedback.
 
