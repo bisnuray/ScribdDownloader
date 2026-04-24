@@ -9,6 +9,18 @@ import requests
 
 COOKIE_FILE = "cookie.json"
 
+# ── Proxy config
+PROXY_HOST = "127.0.0.1"
+PROXY_PORT = "1234"
+PROXY_USER = "demo"
+PROXY_PASS = "demo123"
+
+PROXIES = {
+    "http":  f"http://{PROXY_USER}:{PROXY_PASS}@{PROXY_HOST}:{PROXY_PORT}",
+    "https": f"http://{PROXY_USER}:{PROXY_PASS}@{PROXY_HOST}:{PROXY_PORT}",
+}
+
+
 def load_cookies(file_path: str = COOKIE_FILE) -> dict:
     with open(file_path, "r", encoding="utf-8") as f:
         raw = json.load(f)
@@ -22,8 +34,8 @@ def load_cookies(file_path: str = COOKIE_FILE) -> dict:
 def extract_info(data: dict) -> dict:
     doc = data.get("document", {})
     return {
-        "title": doc.get("title", "N/A"),
-        "access_key": doc.get("access_key", "N/A"),
+        "title":       doc.get("title",      "N/A"),
+        "access_key":  doc.get("access_key", "N/A"),
         "author_name": doc.get("author", {}).get("name", "N/A"),
         "receipt_url": data.get("receipt_url", "N/A"),
     }
@@ -41,21 +53,36 @@ def get_download_link(scribd_url: str, cookie_file: str = COOKIE_FILE) -> dict:
 
     cookies = load_cookies(cookie_file)
     session = requests.Session()
+    session.trust_env = False
     session.cookies.update(cookies)
+    session.headers.update({
+        "User-Agent":       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept":           "application/json, text/plain, */*",
+        "Accept-Language":  "en-US,en;q=0.9",
+        "X-Requested-With": "XMLHttpRequest",
+        "Referer":          f"https://www.scribd.com/document/{doc_id}",
+    })
 
     url1 = f"https://www.scribd.com/doc-page/download-receipt-modal-props/{doc_id}"
     print(f"[1] GET {url1}")
-    r1 = session.get(url1)
+    r1 = session.get(url1, proxies=PROXIES, timeout=15)
     r1.raise_for_status()
+
+    if r1.text.strip().startswith("<"):
+        return {"error": "Got HTML instead of JSON — proxy or session issue."}
+
     info = extract_info(r1.json())
     print(f'    Title      : {info["title"]}')
     print(f'    Author     : {info["author_name"]}')
     print(f'    Access Key : {info["access_key"]}')
     print(f'    Receipt URL: {info["receipt_url"]}')
 
-    url2 = f'https://www.scribd.com/document_downloads/{doc_id}/?secret_password={info["access_key"]}&extension=pdf'
+    url2 = (
+        f"https://www.scribd.com/document_downloads/{doc_id}/"
+        f"?secret_password={info['access_key']}&extension=pdf"
+    )
     print(f"\n[2] GET {url2}")
-    r2 = session.get(url2, allow_redirects=False)
+    r2 = session.get(url2, proxies=PROXIES, allow_redirects=False, timeout=15)
     print(f"    Status : {r2.status_code}")
 
     if r2.status_code not in (301, 302):
@@ -67,7 +94,7 @@ def get_download_link(scribd_url: str, cookie_file: str = COOKIE_FILE) -> dict:
     print(f"    Redirect → {redirect1}")
 
     print(f"\n[3] GET {redirect1}")
-    r3 = session.get(redirect1, allow_redirects=False)
+    r3 = session.get(redirect1, proxies=PROXIES, allow_redirects=False, timeout=15)
     print(f"    Status : {r3.status_code}")
 
     if r3.status_code not in (301, 302):
