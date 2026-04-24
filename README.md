@@ -21,6 +21,7 @@
 ## Requirements
 
 - Access to a Scribd premium account (for cookies).
+- HTTP proxy support to bypass security challenges
 - Must be use Premium Account Cookies [ Update cookie file with you actual premium account cookies ]
 
 ## Author 📝
